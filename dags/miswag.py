@@ -30,6 +30,7 @@ default_args = {
 
 # Constants for S3 bucket and file paths
 BUCKET_NAME = 'dag-landing-zone'
+SYNC_PRODUCTS_BUCKET = 'synced-products'
 PRODUCTS_FILE_PATH = 'data/products.csv'
 # USERS_FILE_PATH = 'spotify_data/users.csv'
 STREAMS_PREFIX = 'data/'
@@ -244,23 +245,25 @@ def move_processed_files():
         raise
 def save_product_to_synced_products_bucket(ti):
     s3 = boto3.client('s3')
-    transformed_data = ti.xcom_pull(task_ids='data_transformation_task', key='transformed_products_data')
+    transformed_data = ti.xcom_pull(task_ids='data_transformation', key='transformed_products_data')
 
     if transformed_data:
         # Create the S3 path based on the current timestamp
         timestamp = datetime.now().strftime("%Y-%m-%d/%H-%M-%S")
+        year = datetime.now().strftime("YYYY")
+        month = datetime.now().strftime("MMMM")
         json_filename = f"{timestamp}.json"
-        s3_path = f"month/day/{json_filename}"  # Update this to your actual path
+        s3_path = f"{year}/{month}/{json_filename}"  # Update this to your actual path
         
         # Save transformed data to S3 as JSON
         try:
             s3.put_object(
-                Bucket='your-bucket-name',  # Replace with your S3 bucket name
+                Bucket=SYNC_PRODUCTS_BUCKET,  # Replace with your S3 bucket name
                 Key=s3_path,
                 Body=json.dumps(transformed_data),
                 ContentType='application/json'
             )
-            logging.info(f"Successfully saved transformed data to s3://synced-products/{s3_path}")
+            logging.info(f"Successfully saved transformed data to s3://{SYNC_PRODUCTS_BUCKET}/{s3_path}")
         except Exception as e:
             logging.error(f"Failed to save transformed data to S3: {str(e)}")
             raise
