@@ -170,7 +170,7 @@ def data_transformation(ti):
     products_data = list(csv.DictReader(products_data))
 
     logging.info("Loaded products data:")
-    logging.info(products_data)
+    logging.error(products_data)
 
     # Step 2: Transform data into JSON format for Facebook batch API
     transformed_data = [
@@ -178,7 +178,7 @@ def data_transformation(ti):
             "method": "UPDATE",
             "data": {
                 "id": str(item["id"]),
-                "title": str(item["title"]),
+                "title": item["title"],
                 "description": item["description"],
                 "availability": item["availability"],
                 "price": item["price"],
