@@ -181,7 +181,7 @@ def check_batch_status(**kwargs):
             if batch_data["status"] == "finished":
                 errors = batch_data.get("errors", [])
                 warnings = batch_data.get("warnings", [])
-                number_of_errors = batch_data.get("errors_total_count",[])
+                number_of_errors = batch_data.get("errors_total_count")
 
                 if errors:
                     logging.warning("Number of errors : ",number_of_errors)
