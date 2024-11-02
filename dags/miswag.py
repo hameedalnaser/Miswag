@@ -80,8 +80,8 @@ def validate_datasets():
             validation_results = False
             logging.error(f"Failed to read or validate data from S3: {e}")
             raise
-    logging.info(f"loooooool {products_data}")
-    logging.info(f"xxxxxxxxx {products_files}")
+    # logging.info(f"loooooool {products_data}")
+    # logging.info(f"xxxxxxxxx {products_files}")
     return validation_results
 
 
