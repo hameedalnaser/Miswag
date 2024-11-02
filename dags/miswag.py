@@ -266,9 +266,9 @@ with DAG('sync_products_with_facebook', default_args=default_args, schedule_inte
         python_callable=data_transformation,
         provide_context=True
     )
-    end_dag = DummyOperator(
-        task_id='end_dag'
-    )
+    # end_dag = DummyOperator(
+    #     task_id='end_dag'
+    # )
 
     send_to_facebook_task = PythonOperator(
         task_id='send_to_facebook_catalog',
