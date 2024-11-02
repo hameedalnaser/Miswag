@@ -16,7 +16,6 @@ import requests
 FB_ACCESS_TOKEN = Variable.get("FB_ACCESS_TOKEN")
 FACEBOOK_BASE_API_URL = Variable.get("FACEBOOK_BASE_API_URL")
 FB_CATALOG_ID = Variable.get("FB_CATALOG_ID")
-# FB_BUSSINES_ID = Variable.get("FB_BUSSINES_ID")
 
 default_args = {
     'owner': 'airflow',
@@ -32,36 +31,14 @@ default_args = {
 BUCKET_NAME = 'dag-landing-zone'
 SYNC_PRODUCTS_BUCKET = 'synced-products'
 PRODUCTS_FILE_PATH = 'data/products.csv'
-# USERS_FILE_PATH = 'spotify_data/users.csv'
 STREAMS_PREFIX = 'data/'
 ARCHIVE_PREFIX = 'archive/'
-# AWS_PUBLIC_KEY = Variable.get("AWS_PUBLIC_KEY")
-# AWS_SECRET_KEY = Variable.get("AWS_SECRET_KEY")
-# AWS_PUBLIC_KEY=''
-# AWS_SECRET_KEY=''
-# Expected data structure and types
-# EXPECTED_COLUMNS = {
-#     "id": int,
-#     "title": str,
-#     "description": str,
-#     "link": str,
-#     "image_link": str,
-#     "availability": str,
-#     "price": str,  # Assuming price can be a string (e.g., "25.99 USD")
-#     "brand": str,
-#     "condition": str,
-#     "product_type": str
-# }
+
 REQUIRED_COLUMNS = {"id", "title", "description", "link", "image_link", "availability", 
                      "price", "brand", "condition", "product_type"}
 
 def list_s3_files(prefix, bucket=BUCKET_NAME):
     """ List all files in S3 bucket that match the prefix """
-    # session = boto3.Session(
-    #     aws_access_key_id=AWS_PUBLIC_KEY,
-    #     aws_secret_access_key=AWS_SECRET_KEY,
-    #     region_name='eu-central-1'
-    # )
     s3 = boto3.client('s3')
     try:
         response = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
@@ -119,18 +96,6 @@ def branch_task(ti):
 
     # If all validation checks pass
     if all(validation_results):
-        # # Retrieve file paths from XCom or another task that lists the files
-        # file_paths = ti.xcom_pull(task_ids='list_files_task')  # Assuming 'list_files_task' provides the file paths
-        # if file_paths and len(file_paths) > 1:  # Check if there is more than one file
-        #     # Read and merge the files, keeping only the header of the first file
-        #     dfs = [pd.read_csv(file) for file in file_paths]
-        #     merged_df = pd.concat(dfs, ignore_index=True)
-        #     merged_df.columns = dfs[0].columns  # Keep header from the first file
-
-        #     # Push merged DataFrame to XCom for further use in the DAG
-        #     ti.xcom_push(key='merged_file', value=merged_df.to_dict('records'))  # Convert DataFrame to a list of dicts
-        #     logging.info("Files merged successfully in memory.")
-
         return 'data_transformation'
     else:
         return 'end_dag'
@@ -216,16 +181,19 @@ def check_batch_status(**kwargs):
             if batch_data["status"] == "finished":
                 errors = batch_data.get("errors", [])
                 warnings = batch_data.get("warnings", [])
-                
+                number_of_errors = batch_data.get("errors_total_count",[])
+
                 if errors:
-                    print("Errors found:", errors)
+                    logging.warning("Number of errors : ",number_of_errors)
+                    logging.error("Errors found:", errors)
                 if warnings:
-                    print("Warnings found:", warnings)
-                
+                    logging.warning("Number of errors : ",number_of_errors)
+                    logging.warning("Warnings found:", warnings)
                 if not errors:
-                    print("Batch processed successfully with no errors.")
+                    logging.info("Batch processed successfully with no errors.")
             else:
-                print(f"Batch process status: {batch_data['status']}")
+                logging.warning("Number of errors : ",number_of_errors)
+                logging.warning(f"Batch process status: {batch_data['status']}")
         else:
             raise Exception(f"Failed to check batch status: {response.status_code} - {response.text}")
 
