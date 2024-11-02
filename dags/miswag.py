@@ -167,7 +167,7 @@ def data_transformation(ti):
 
     # products_data = products_data.to_dict(orient="records")
     # products_data = products_data.to_json(orient='records')
-    products_data = list(csv.DictReader(products_data))
+    # products_data = list(csv.DictReader(products_data))
 
     logging.info("Loaded products data:")
     logging.error(products_data)
