@@ -165,7 +165,7 @@ def data_transformation(ti):
         products_data = read_s3_csv(products_files[0])
 
     # products_data = products_data.to_dict(orient="records")
-    products_data = json.loads(products_data)
+    products_data = products_data.to_json(orient='records')
     logging.info("Loaded products data:")
     logging.info(products_data)
 
