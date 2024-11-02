@@ -283,7 +283,6 @@ with DAG('sync_products_with_facebook', default_args=default_args, schedule_inte
         task_id='send_to_facebook_catalog',
         python_callable=send_to_facebook_catalog,
         provide_context=True,
-        # on_failure_callback=alert_on_failure,
         sla=timedelta(hours=1),
     )
 
@@ -291,7 +290,6 @@ with DAG('sync_products_with_facebook', default_args=default_args, schedule_inte
         task_id='check_batch_status',
         python_callable=check_batch_status,
         provide_context=True,
-        # on_failure_callback=alert_on_failure,
         sla=timedelta(hours=1),
     )
     
