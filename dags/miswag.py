@@ -202,15 +202,15 @@ def move_processed_files():
     s3 = boto3.client('s3')
 
     timestamp = datetime.now().strftime("%Y-%m-%d/%H-%M-%S")
-    year = datetime.now().strftime("YYYY")
-    month = datetime.now().strftime("MMMM")
-    day = datetime.now().strftime("DD")
+    year = datetime.now().strftime("%Y")
+    month = datetime.now().strftime("%m")
+    day = datetime.now().strftime("%d")
 
     try:
         stream_files = list_s3_files(STREAMS_PREFIX)
         for file in stream_files:
             copy_source = {'Bucket': BUCKET_NAME, 'Key': file}
-            destination_key = file.replace('data/', f"archive/{year}/{month}/{day}/{timestamp}")
+            destination_key = file.replace('data/', f"archive/{year}/{month}/{day}/")
             s3.copy_object(CopySource=copy_source, Bucket=BUCKET_NAME, Key=destination_key)
             s3.delete_object(Bucket=BUCKET_NAME, Key=file)
             logging.info(f"Moved {file} to {destination_key}")
@@ -224,11 +224,11 @@ def save_product_to_synced_products_bucket(ti):
     if transformed_data:
         # Create the S3 path based on the current timestamp
         timestamp = datetime.now().strftime("%Y-%m-%d/%H-%M-%S")
-        year = datetime.now().strftime("YYYY")
-        month = datetime.now().strftime("MMMM")
-        day = datetime.now().strftime("DD")
+        year = datetime.now().strftime("%Y")
+        month = datetime.now().strftime("%m")
+        day = datetime.now().strftime("%d")
         json_filename = f"{timestamp}.json"
-        s3_path = f"{year}/{month}/{json_filename}"  # Update this to your actual path
+        s3_path = f"{year}/{month}/{day}/{json_filename}"  # Update this to your actual path
         
         # Save transformed data to S3 as JSON
         try:
