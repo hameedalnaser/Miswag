@@ -201,10 +201,15 @@ def check_batch_status(**kwargs):
 def move_processed_files():
     s3 = boto3.client('s3')
 
-    timestamp = datetime.now().strftime("%Y-%m-%d/%H-%M-%S")
-    year = datetime.now().strftime("%Y")
-    month = datetime.now().strftime("%m")
-    day = datetime.now().strftime("%d")
+    # Define a timezone offset of +3 hours
+    offset = timedelta(hours=3)
+    # Get the current timestamp and add the offset
+    now_with_offset = datetime.now() + offset
+    # Create the S3 path based on the current timestamp
+    timestamp = now_with_offset.strftime("%Y-%m-%d/%H-%M-%S")
+    year = now_with_offset.strftime("%Y")
+    month = now_with_offset.strftime("%m")
+    day = now_with_offset.strftime("%d")
 
     try:
         stream_files = list_s3_files(STREAMS_PREFIX)
@@ -222,11 +227,15 @@ def save_product_to_synced_products_bucket(ti):
     transformed_data = ti.xcom_pull(task_ids='data_transformation', key='transformed_products_data')
 
     if transformed_data:
+        # Define a timezone offset of +3 hours
+        offset = timedelta(hours=3)
+        # Get the current timestamp and add the offset
+        now_with_offset = datetime.now() + offset
         # Create the S3 path based on the current timestamp
-        timestamp = datetime.now().strftime("%Y-%m-%d/%H-%M-%S")
-        year = datetime.now().strftime("%Y")
-        month = datetime.now().strftime("%m")
-        day = datetime.now().strftime("%d")
+        timestamp = now_with_offset.strftime("%Y-%m-%d/%H-%M-%S")
+        year = now_with_offset.strftime("%Y")
+        month = now_with_offset.strftime("%m")
+        day = now_with_offset.strftime("%d")
         json_filename = f"{timestamp}.json"
         s3_path = f"{year}/{month}/{day}/{json_filename}"  # Update this to your actual path
         
