@@ -181,7 +181,7 @@ def data_transformation(ti):
 
 def send_to_facebook_catalog(**kwargs):
     """Send each batch to Facebook's catalog API."""
-    batches = kwargs['ti'].xcom_pull(key='transformed_batches', task_ids='transform_data')
+    batches = kwargs['ti'].xcom_pull(key='transformed_products_data', task_ids='data_transformation')
     handles = []
     logging.info(batches)
     for batch in batches:
@@ -320,4 +320,4 @@ with DAG('sync_products_with_facebook', default_args=default_args, schedule_inte
     )
 
 
-    validate_datasets>>check_validation>>[data_transformation,end_dag]>>send_to_facebook_task >> check_batch_status_task>>move_input_data>>save_transformed_data_task
+    validate_datasets>>check_validation>>data_transformation>>send_to_facebook_task >> check_batch_status_task>>move_input_data>>save_transformed_data_task
