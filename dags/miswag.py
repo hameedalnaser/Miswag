@@ -181,18 +181,18 @@ def check_batch_status(**kwargs):
             if batch_data["status"] == "finished":
                 errors = batch_data.get("errors", [])
                 warnings = batch_data.get("warnings", [])
-                number_of_errors = batch_data.get("errors_total_count")
+                # number_of_errors = batch_data.get("errors_total_count")
 
                 if errors:
-                    logging.warning("Number of errors : ",number_of_errors)
+                    # logging.warning("Number of errors : ",number_of_errors)
                     logging.error("Errors found:", errors)
                 if warnings:
-                    logging.warning("Number of errors : ",number_of_errors)
+                    # logging.warning("Number of errors : ",number_of_errors)
                     logging.warning("Warnings found:", warnings)
                 if not errors:
                     logging.info("Batch processed successfully with no errors.")
             else:
-                logging.warning("Number of errors : ",number_of_errors)
+                # logging.warning("Number of errors : ",number_of_errors)
                 logging.warning(f"Batch process status: {batch_data['status']}")
         else:
             raise Exception(f"Failed to check batch status: {response.status_code} - {response.text}")
