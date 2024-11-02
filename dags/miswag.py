@@ -177,8 +177,8 @@ def data_transformation(ti):
         {
             "method": "UPDATE",
             "data": {
-                "id": item["id"],
-                "title": item["title"],
+                "id": int(item["id"]),
+                "title": str(item["title"]),
                 "description": item["description"],
                 "availability": item["availability"],
                 "price": item["price"],
