@@ -202,19 +202,19 @@ def send_to_facebook_catalog(**kwargs):
     batches = kwargs['ti'].xcom_pull(key='transformed_batches', task_ids='transform_data')
     handles = []
     logging.info(batches)
-    # for batch in batches:
-    url = f"{FACEBOOK_BASE_API_URL}/{FB_CATALOG_ID}/items_batch?item_type=PRODUCT_ITEM"
-    headers = {
-        "Authorization": f"Bearer {FB_ACCESS_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    response = requests.post(url, headers=headers, json={"requests": batches})
-    response_data = response.json()
+    for batch in batches:
+        url = f"{FACEBOOK_BASE_API_URL}/{FB_CATALOG_ID}/items_batch?item_type=PRODUCT_ITEM"
+        headers = {
+            "Authorization": f"Bearer {FB_ACCESS_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        response = requests.post(url, headers=headers, json={"requests": batch})
+        response_data = response.json()
 
-    if response.status_code == 200 and 'handles' in response_data:
-        handles.extend(response_data['handles'])  # Use extend to add all handles from the list
-    else:
-        raise Exception(f"Failed to send batch: {response.status_code} - {response.text}")
+        if response.status_code == 200 and 'handles' in response_data:
+            handles.extend(response_data['handles'])  # Use extend to add all handles from the list
+        else:
+            raise Exception(f"Failed to send batch: {response.status_code} - {response.text}")
 
     kwargs['ti'].xcom_push(key='batch_handles', value=handles)
 
