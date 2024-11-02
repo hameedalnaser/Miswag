@@ -171,7 +171,7 @@ def data_transformation(ti):
 
     logging.info("Loaded products data:")
     logging.error(products_data)
-
+    logging.error(type(products_data))
     # Step 2: Transform data into JSON format for Facebook batch API
     transformed_data = [
         {
