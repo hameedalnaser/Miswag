@@ -9,6 +9,7 @@ import pandas as pd
 import boto3
 import logging
 import json
+import csv
 import requests
 
 # Variables defined in Airflow UI
@@ -165,7 +166,9 @@ def data_transformation(ti):
         products_data = read_s3_csv(products_files[0])
 
     # products_data = products_data.to_dict(orient="records")
-    products_data = products_data.to_json(orient='records')
+    # products_data = products_data.to_json(orient='records')
+    products_data = list(csv.DictReader(products_data))
+
     logging.info("Loaded products data:")
     logging.info(products_data)
 
