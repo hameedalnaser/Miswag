@@ -131,25 +131,9 @@ def branch_task(ti):
         #     logging.info("Files merged successfully in memory.")
 
         return 'data_transformation'
-    # else:
-    #     return 'end_dag'
+    else:
+        return 'end_dag'
 
-# def data_transformation():
-#      # Get the list of product files from S3
-#     products_files = list_s3_files(STREAMS_PREFIX)
-    
-#     # Check if there is more than one file
-#     if len(products_files) > 1:
-#         # Read and merge the files, keeping only the header of the first file
-#         dfs = [read_s3_csv(file) for file in products_files]
-#         products_data = pd.concat(dfs, ignore_index=True)
-#         products_data.columns = dfs[0].columns  # Use the header from the first file
-#     else:
-#         # If only one file, read it directly
-#         products_data = read_s3_csv(products_files[0])
-#     logging.info(products_data)
-#     # Return or process products_data as needed, keeping it consistently named
-#     return products_data
 
 def data_transformation(ti):
     # Step 1: Load the product files from S3
@@ -166,8 +150,6 @@ def data_transformation(ti):
         products_data = read_s3_csv(products_files[0])
 
     products_data = products_data.to_dict(orient="records")
-    # products_data = products_data.to_json(orient='records')
-    # products_data = list(csv.DictReader(products_data))
 
     logging.info("Loaded products data:")
     logging.error(products_data)
@@ -338,4 +320,4 @@ with DAG('sync_products_with_facebook', default_args=default_args, schedule_inte
     )
 
 
-    validate_datasets>>check_validation>>data_transformation>>send_to_facebook_task >> check_batch_status_task>>move_input_data>>save_transformed_data_task
+    validate_datasets>>check_validation>>[data_transformation,end_dag]>>send_to_facebook_task >> check_batch_status_task>>move_input_data>>save_transformed_data_task
