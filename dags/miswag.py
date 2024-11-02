@@ -98,7 +98,7 @@ def validate_datasets():
 
 def branch_task(ti):
     validation_results = ti.xcom_pull(task_ids='validate_datasets')
-    
+    logging.info(validation_results)
     if all(validation_results.values()):
         return 'calculate_genre_level_kpis'
     else:
