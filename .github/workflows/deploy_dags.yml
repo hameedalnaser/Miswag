@@ -25,4 +25,4 @@ jobs:
       - name: Sync DAGs to S3
         run: aws s3 sync ./dags/ s3://airflow-setting/dags/ --delete
       - name: Sync requirements.txt to S3
-        run: aws s3 sync /Users/hameed/projects/Miswag/requirements.txt s3://airflow-setting/requirements.txt --delete
+        run: aws s3 cp /Users/hameed/projects/Miswag/requirements.txt s3://airflow-setting/requirements.txt --delete
