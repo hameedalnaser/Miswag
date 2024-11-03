@@ -1,5 +1,7 @@
 # Launching the DAG
 
+## Don't forget to read the documentation inside "docs" folder
+
 ## Prerequisites
 
 1. **Install Apache Airflow**:
