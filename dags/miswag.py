@@ -24,7 +24,7 @@ default_args = {
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 0,
-    'retry_delay': timedelta(minutes=5),
+    'retry_delay': timedelta(minutes=3),
 }
 
 # Constants for S3 bucket and file paths
@@ -37,13 +37,16 @@ ARCHIVE_PREFIX = 'archive/'
 REQUIRED_COLUMNS = {"id", "title", "description", "link", "image_link", "availability", 
                      "price", "brand", "condition", "product_type"}
 
+s3_client = boto3.client('s3')
+
 def list_s3_files(prefix, bucket=BUCKET_NAME):
     """ List all files in S3 bucket that match the prefix """
-    s3 = boto3.client('s3')
+
     try:
-        response = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+        response = s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
         files = [content['Key'] for content in response.get('Contents', []) if content['Key'].endswith('.csv')]
         logging.info(f"Successfully listed files with prefix {prefix} from S3: {files}")
+        logging.warning(f"number of files are : {len(files)}")
         return files
     except Exception as e:
         logging.error(f"Failed to list files with prefix {prefix} from S3: {str(e)}")
@@ -51,9 +54,8 @@ def list_s3_files(prefix, bucket=BUCKET_NAME):
 
 def read_s3_csv(file_name, bucket=BUCKET_NAME):
     """ Helper function to read a CSV file from S3 """
-    s3 = boto3.client('s3')
     try:
-        obj = s3.get_object(Bucket=bucket, Key=file_name)
+        obj = s3_client.get_object(Bucket=bucket, Key=file_name)
         logging.info(f"Successfully read {file_name} from S3")
         return pd.read_csv(obj['Body'])
     except Exception as e:
@@ -80,8 +82,6 @@ def validate_datasets():
             validation_results = False
             logging.error(f"Failed to read or validate data from S3: {e}")
             raise
-    # logging.info(f"loooooool {products_data}")
-    # logging.info(f"xxxxxxxxx {products_files}")
     return validation_results
 
 
@@ -98,6 +98,7 @@ def branch_task(ti):
     if all(validation_results):
         return 'data_transformation'
     else:
+        logging.error("Data are not vaild, going to skip the DAG")
         return 'end_dag'
 
 
@@ -116,10 +117,8 @@ def data_transformation(ti):
         products_data = read_s3_csv(products_files[0])
 
     products_data = products_data.to_dict(orient="records")
-
+    logging.warning(f"Number of input products are : {len(products_data)}")
     logging.info("Loaded products data:")
-    logging.error(products_data)
-    logging.error(type(products_data))
     # Step 2: Transform data into JSON format for Facebook batch API
     transformed_data = [
         {
