@@ -267,4 +267,6 @@ with DAG('sync_products_with_facebook', default_args=default_args, schedule_inte
     )
 
 
-    validate_datasets>>check_validation>>data_transformation>>send_to_facebook_task >> check_batch_status_task>>move_input_data>>save_transformed_data_task>>end_dag
+    validate_datasets>>check_validation
+    check_validation>>data_transformation>>send_to_facebook_task >> check_batch_status_task>>move_input_data>>save_transformed_data_task
+    check_validation>>end_dag>>send_to_facebook_task >> check_batch_status_task>>move_input_data>>save_transformed_data_task
