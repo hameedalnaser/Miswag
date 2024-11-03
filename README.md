@@ -43,10 +43,35 @@
 ## Diagrams
 
 ### Infrastructure Diagram
-![Infrastructure Diagram](/docs/pics/data architecture.png)
+![Infrastructure Diagram](docs/pics/data_architecture.png)
 
 ### Data Flow Diagram
-![Data Flow Diagram](path/to/data_flow_diagram.png)
+![Data Flow Diagram](docs/pics/dataflow.png)
 
 ## Screenshots of DAG Implementation
-![DAG Implementation Screenshot](path/to/dag_screenshot.png)
+### Landing Zone (S3 Bucket)
+![DAG Implementation Screenshot](docs/pics/step1.png)
+
+### Run the DAG manually
+![DAG Implementation Screenshot](docs/pics/step2.png)
+
+### DAG failed due to Facebook token expired and will retry in 3 mins
+![DAG Implementation Screenshot](docs/pics/step3.png)
+
+### Renew the acess token (getting the new access token form Facebook)
+![DAG Implementation Screenshot](docs/pics/step4.png)
+
+### Update the new token in Admin>>Varaibles>>FB_ACCESS_TOKEN
+![DAG Implementation Screenshot](docs/pics/step5.png)
+
+### DAG retry and completed successfuly
+![DAG Implementation Screenshot](docs/pics/step6.png)
+
+### Input data moved to archive
+![DAG Implementation Screenshot](docs/pics/step7.png)
+
+### Sent products saved in (Sync-Products) s3 bucket in JSON format
+![DAG Implementation Screenshot](docs/pics/step9.png)
+
+### Products are now avilable in Facebook Commerce Manager
+![DAG Implementation Screenshot](docs/pics/step10.png)
