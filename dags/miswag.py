@@ -17,6 +17,9 @@ FB_ACCESS_TOKEN = Variable.get("FB_ACCESS_TOKEN")
 FACEBOOK_BASE_API_URL = Variable.get("FACEBOOK_BASE_API_URL")
 FB_CATALOG_ID = Variable.get("FB_CATALOG_ID")
 
+# Set up logging for monitoring
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
@@ -34,9 +37,18 @@ PRODUCTS_FILE_PATH = 'data/products.csv'
 STREAMS_PREFIX = 'data/'
 ARCHIVE_PREFIX = 'archive/'
 
+# Define a timezone offset of +3 hours
+offset = timedelta(hours=3)
+now_with_offset = datetime.now() + offset
+timestamp = now_with_offset.strftime("%Y-%m-%d/%H-%M-%S")
+year = now_with_offset.strftime("%Y")
+month = now_with_offset.strftime("%m")
+day = now_with_offset.strftime("%d")
+
 REQUIRED_COLUMNS = {"id", "title", "description", "link", "image_link", "availability", 
                      "price", "brand", "condition", "product_type"}
 
+# Initialize S3 client with secure access
 s3_client = boto3.client('s3')
 
 def list_s3_files(prefix, bucket=BUCKET_NAME):
@@ -45,15 +57,14 @@ def list_s3_files(prefix, bucket=BUCKET_NAME):
     try:
         response = s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
         files = [content['Key'] for content in response.get('Contents', []) if content['Key'].endswith('.csv')]
-        logging.info(f"Successfully listed files with prefix {prefix} from S3: {files}")
-        logging.warning(f"number of files are : {len(files)}")
+        logging.info(f"Successfully listed files with prefix {prefix} from S3: {files}, number of files are : {len(files)}")
         return files
     except Exception as e:
         logging.error(f"Failed to list files with prefix {prefix} from S3: {str(e)}")
         raise Exception(f"Failed to list files with prefix {prefix} from S3: {str(e)}")
 
 def read_s3_csv(file_name, bucket=BUCKET_NAME):
-    """ Helper function to read a CSV file from S3 """
+    """ Read a CSV file from S3 """
     try:
         obj = s3_client.get_object(Bucket=bucket, Key=file_name)
         logging.info(f"Successfully read {file_name} from S3")
@@ -64,20 +75,18 @@ def read_s3_csv(file_name, bucket=BUCKET_NAME):
     
 def validate_datasets():
     validation_results = {}
-
-    # Validate products dataset
     try:
-            products_files = list_s3_files(STREAMS_PREFIX)
-            for products_file in products_files:
-                products_data = read_s3_csv(products_file)
-                missing_columns = set(REQUIRED_COLUMNS) - set(products_data.columns)
-                if not missing_columns:
-                    validation_results = True
-                    logging.info(f"All required columns present in {products_file}")
-                else:
-                    validation_results = False
-                    logging.warning(f"Missing columns in {products_file}: {missing_columns}")
-                    break
+        products_files = list_s3_files(STREAMS_PREFIX)
+        for products_file in products_files:
+            products_data = read_s3_csv(products_file)
+            missing_columns = set(REQUIRED_COLUMNS) - set(products_data.columns)
+            if not missing_columns:
+                validation_results = True
+                logging.info(f"All required columns present in {products_file}")
+            else:
+                validation_results = False
+                logging.warning(f"Missing columns in {products_file}: {missing_columns}")
+                break
     except Exception as e:
             validation_results = False
             logging.error(f"Failed to read or validate data from S3: {e}")
@@ -86,40 +95,31 @@ def validate_datasets():
 
 
 def branch_task(ti):
-    # Pull validation results from XCom
     validation_results = ti.xcom_pull(task_ids='validate_datasets')
-    logging.info(f"Validation results: {validation_results}")
-
-    # Check if validation_results is already a list, if not, wrap it in a list
     if not isinstance(validation_results, list):
         validation_results = [validation_results]
-
     # If all validation checks pass
     if all(validation_results):
         return 'data_transformation'
     else:
-        logging.error("Data are not vaild, going to skip the DAG")
+        logging.error("DValidation failed; ending DAG.")
         return 'end_dag'
 
 
 def data_transformation(ti):
-    # Step 1: Load the product files from S3
     products_files = list_s3_files(STREAMS_PREFIX)
-    
-    # Check if there is more than one file and merge if needed
     if len(products_files) > 1:
-        # Read and merge files, keeping only the header from the first file
+        # Read and merge files.
         dfs = [read_s3_csv(file) for file in products_files]
         products_data = pd.concat(dfs, ignore_index=True)
-        products_data.columns = dfs[0].columns  # Keep header from the first file
+        products_data.columns = dfs[0].columns
     else:
-        # If only one file, read it directly
         products_data = read_s3_csv(products_files[0])
 
     products_data = products_data.to_dict(orient="records")
-    logging.warning(f"Number of input products are : {len(products_data)}")
+    logging.info(f"Number of input products are : {len(products_data)}")
     logging.info("Loaded products data:")
-    # Step 2: Transform data into JSON format for Facebook batch API
+    # Transform data into JSON format for Facebook batch API
     transformed_data = [
         {
             "method": "UPDATE",
@@ -138,124 +138,87 @@ def data_transformation(ti):
         }
         for item in products_data
     ]
-    logging.info(transformed_data)
-    # Step 3: Push transformed data to XCom for the next task
     ti.xcom_push(key='transformed_products_data', value=transformed_data)
-    logging.info("Transformed data pushed to XCom.")
-    return 'send_to_facebook_catalog'
+    logging.info("Data transformed successfully.")
+    # return 'send_to_facebook_catalog'
 
 def send_to_facebook_catalog(**kwargs):
-    """Send each batch to Facebook's catalog API."""
     batches = kwargs['ti'].xcom_pull(key='transformed_products_data', task_ids='data_transformation')
     handles = []
-    logging.error(batches)
-    # for batch in batches:
     url = f"{FACEBOOK_BASE_API_URL}/{FB_CATALOG_ID}/items_batch?item_type=PRODUCT_ITEM"
     headers = {
         "Authorization": f"Bearer {FB_ACCESS_TOKEN}",
         "Content-Type": "application/json"
     }
-    response = requests.post(url, headers=headers, json={"requests": batches})
-    response_data = response.json()
+    try:
+        response = requests.post(url, headers=headers, json={"requests": batches})
+        response_data = response.json()
 
-    if response.status_code == 200 and 'handles' in response_data:
-        handles.extend(response_data['handles'])  # Use extend to add all handles from the list
-    else:
-        raise Exception(f"Failed to send batch: {response.status_code} - {response.text}")
-
-    kwargs['ti'].xcom_push(key='batch_handles', value=handles)
+        if response.status_code == 200:
+            handles = response.json().get('handles', [])
+            kwargs['ti'].xcom_push(key='batch_handles', value=handles)
+            logging.info("Data successfully sent to Facebook.")
+            # handles.extend(response_data['handles'])  # Use extend to add all handles from the list
+        else:
+            logging.error(f"Error sending batch: {response.text}")
+            raise Exception(f"Batch error: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Network error: {e}")
+        raise
 
 def check_batch_status(**kwargs):
-    """Check the status of each batch in Facebook's API."""
     handles = kwargs['ti'].xcom_pull(key='batch_handles', task_ids='send_to_facebook_catalog')
-    
     for handle in handles:
         url = f"{FACEBOOK_BASE_API_URL}/{FB_CATALOG_ID}/check_batch_request_status?handle={handle}"
         headers = {"Authorization": f"Bearer {FB_ACCESS_TOKEN}"}
-        response = requests.get(url, headers=headers)
-        response_data = response.json()
-        
-        if response.status_code == 200 and "data" in response_data:
-            batch_data = response_data["data"][0]
-            if batch_data["status"] == "finished":
-                errors = batch_data.get("errors", [])
-                warnings = batch_data.get("warnings", [])
-                # number_of_errors = batch_data.get("errors_total_count")
-
-                if errors:
-                    # logging.warning("Number of errors : ",number_of_errors)
-                    logging.error("Errors found:", errors)
-                if warnings:
-                    # logging.warning("Number of errors : ",number_of_errors)
-                    logging.warning("Warnings found:", warnings)
-                if not errors:
-                    logging.info("Batch processed successfully with no errors.")
+        try:
+            response = requests.get(url, headers=headers)
+        # response_data = response.json()
+            if response.status_code == 200:
+                batch_data = response.json().get("data", [{}])[0]
+                if batch_data["status"] == "finished":
+                    logging.info(f"Batch {handle} completed.")
+                else:
+                    logging.warning(f"Batch {handle} status: {batch_data['status']}")
             else:
-                # logging.warning("Number of errors : ",number_of_errors)
-                logging.warning(f"Batch process status: {batch_data['status']}")
-        else:
-            raise Exception(f"Failed to check batch status: {response.status_code} - {response.text}")
-
+                logging.error(f"Status check error: {response.text}")
+                raise Exception("Failed status check.")
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Status check network error: {e}")
+            raise
 
 def move_processed_files():
-    s3 = boto3.client('s3')
-
-    # Define a timezone offset of +3 hours
-    offset = timedelta(hours=3)
-    # Get the current timestamp and add the offset
-    now_with_offset = datetime.now() + offset
-    # Create the S3 path based on the current timestamp
-    timestamp = now_with_offset.strftime("%Y-%m-%d/%H-%M-%S")
-    year = now_with_offset.strftime("%Y")
-    month = now_with_offset.strftime("%m")
-    day = now_with_offset.strftime("%d")
-
     try:
         stream_files = list_s3_files(STREAMS_PREFIX)
         for file in stream_files:
             copy_source = {'Bucket': BUCKET_NAME, 'Key': file}
             destination_key = file.replace('data/', f"archive/{year}/{month}/{day}/")
-            s3.copy_object(CopySource=copy_source, Bucket=BUCKET_NAME, Key=destination_key)
-            s3.delete_object(Bucket=BUCKET_NAME, Key=file)
+            s3_client.copy_object(CopySource=copy_source, Bucket=BUCKET_NAME, Key=destination_key)
+            s3_client.delete_object(Bucket=BUCKET_NAME, Key=file)
             logging.info(f"Moved {file} to {destination_key}")
     except Exception as e:
         logging.error(f"Failed to move files from {STREAMS_PREFIX} to {ARCHIVE_PREFIX}: {str(e)}")
         raise
-def save_product_to_synced_products_bucket(ti):
-    s3 = boto3.client('s3')
-    transformed_data = ti.xcom_pull(task_ids='data_transformation', key='transformed_products_data')
 
-    if transformed_data:
-        # Define a timezone offset of +3 hours
-        offset = timedelta(hours=3)
-        # Get the current timestamp and add the offset
-        now_with_offset = datetime.now() + offset
-        # Create the S3 path based on the current timestamp
-        timestamp = now_with_offset.strftime("%Y-%m-%d/%H-%M-%S")
-        year = now_with_offset.strftime("%Y")
-        month = now_with_offset.strftime("%m")
-        day = now_with_offset.strftime("%d")
+def save_product_synced_products(ti):
+    transformed_data = ti.xcom_pull(task_ids='data_transformation', key='transformed_products_data')        
+    try:
         json_filename = f"{timestamp}.json"
-        s3_path = f"{year}/{month}/{day}/{json_filename}"  # Update this to your actual path
-        
-        # Save transformed data to S3 as JSON
-        try:
-            s3.put_object(
-                Bucket=SYNC_PRODUCTS_BUCKET,  # Replace with your S3 bucket name
-                Key=s3_path,
-                Body=json.dumps(transformed_data),
-                ContentType='application/json'
-            )
-            logging.info(f"Successfully saved transformed data to s3://{SYNC_PRODUCTS_BUCKET}/{s3_path}")
-        except Exception as e:
-            logging.error(f"Failed to save transformed data to S3: {str(e)}")
-            raise
-    else:
-        logging.warning("No transformed data to save.")
+        s3_path = f"{year}/{month}/{day}/{json_filename}"
+        s3_client.put_object(
+            Bucket=SYNC_PRODUCTS_BUCKET,
+            Key=s3_path,
+            Body=json.dumps(transformed_data),
+            ContentType='application/json'
+        )
+        logging.info(f"Successfully saved transformed data to s3://{SYNC_PRODUCTS_BUCKET}/{s3_path}")
+    except Exception as e:
+        logging.error(f"Failed to save transformed data to S3: {str(e)}")
+        raise
 
 
 
-with DAG('sync_products_with_facebook', default_args=default_args, schedule_interval='@daily') as dag:
+with DAG('sync_products_with_facebook', default_args=default_args, schedule_interval='@hourly') as dag:
     
     
     validate_datasets = PythonOperator(
@@ -299,7 +262,7 @@ with DAG('sync_products_with_facebook', default_args=default_args, schedule_inte
     )
     save_transformed_data_task = PythonOperator(
         task_id='save_transformed_data_task',
-        python_callable=save_product_to_synced_products_bucket,
+        python_callable=save_product_synced_products,
         provide_context=True,
     )
 
