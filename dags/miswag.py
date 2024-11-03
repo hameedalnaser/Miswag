@@ -218,7 +218,7 @@ def save_sent_data(ti):
 
 
 
-with DAG('sync_products_with_fb_catalog', default_args=default_args, schedule_interval='@hourly') as dag:
+with DAG('sync_products_with_facebook_catalog', default_args=default_args, schedule_interval='@hourly') as dag:
     
     
     data_checking = PythonOperator(
