@@ -102,7 +102,7 @@ def branch_task(ti):
     if all(validation_results):
         return 'data_transformation'
     else:
-        logging.error("DValidation failed; ending DAG.")
+        logging.error("Validation failed; ending DAG.")
         return 'end_dag'
 
 
@@ -140,7 +140,7 @@ def data_transformation(ti):
     ]
     ti.xcom_push(key='transformed_products_data', value=transformed_data)
     logging.info("Data transformed successfully.")
-    # return 'send_to_facebook_catalog'
+    return 'send_to_facebook_catalog'
 
 def send_to_facebook_catalog(**kwargs):
     batches = kwargs['ti'].xcom_pull(key='transformed_products_data', task_ids='data_transformation')
