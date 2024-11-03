@@ -40,7 +40,7 @@ ARCHIVE_PREFIX = 'archive/'
 # Define a timezone offset of +3 hours
 offset = timedelta(hours=3)
 now_with_offset = datetime.now() + offset
-timestamp = now_with_offset.strftime("%Y-%m-%d/%H-%M-%S")
+timestamp = now_with_offset.strftime("%H-%M-%S")
 year = now_with_offset.strftime("%Y")
 month = now_with_offset.strftime("%m")
 day = now_with_offset.strftime("%d")
