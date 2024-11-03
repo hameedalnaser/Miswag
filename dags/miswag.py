@@ -73,7 +73,7 @@ def read_s3_csv(file_name, bucket=BUCKET_NAME):
         logging.error(f"Failed to read {file_name} from S3: {str(e)}")
         raise Exception(f"Failed to read {file_name} from S3: {str(e)}")
     
-def validate_datasets():
+def data_checking():
     validation_results = {}
     try:
         products_files = list_s3_files(STREAMS_PREFIX)
@@ -94,8 +94,8 @@ def validate_datasets():
     return validation_results
 
 
-def branch_task(ti):
-    validation_results = ti.xcom_pull(task_ids='validate_datasets')
+def data_validation(ti):
+    validation_results = ti.xcom_pull(task_ids='data_checking')
     if not isinstance(validation_results, list):
         validation_results = [validation_results]
     # If all validation checks pass
@@ -103,7 +103,7 @@ def branch_task(ti):
         return 'data_transformation'
     else:
         logging.error("Validation failed; ending DAG.")
-        return 'end_dag'
+        return 'validation_failed'
 
 
 def data_transformation(ti):
@@ -166,7 +166,7 @@ def send_to_facebook_catalog(**kwargs):
         logging.error(f"Network error: {e}")
         raise
 
-def check_batch_status(**kwargs):
+def checking_sent_data_handles(**kwargs):
     handles = kwargs['ti'].xcom_pull(key='batch_handles', task_ids='send_to_facebook_catalog')
     for handle in handles:
         url = f"{FACEBOOK_BASE_API_URL}/{FB_CATALOG_ID}/check_batch_request_status?handle={handle}"
@@ -187,7 +187,7 @@ def check_batch_status(**kwargs):
             logging.error(f"Status check network error: {e}")
             raise
 
-def move_processed_files():
+def archive_input_data():
     try:
         stream_files = list_s3_files(STREAMS_PREFIX)
         for file in stream_files:
@@ -200,7 +200,7 @@ def move_processed_files():
         logging.error(f"Failed to move files from {STREAMS_PREFIX} to {ARCHIVE_PREFIX}: {str(e)}")
         raise
 
-def save_product_synced_products(ti):
+def save_sent_data(ti):
     transformed_data = ti.xcom_pull(task_ids='data_transformation', key='transformed_products_data')        
     try:
         json_filename = f"{timestamp}.json"
@@ -221,14 +221,14 @@ def save_product_synced_products(ti):
 with DAG('sync_products_with_facebook', default_args=default_args, schedule_interval='@hourly') as dag:
     
     
-    validate_datasets = PythonOperator(
-        task_id='validate_datasets',
-        python_callable=validate_datasets
+    data_checking = PythonOperator(
+        task_id='data_checking',
+        python_callable=data_checking
     )
 
-    check_validation = BranchPythonOperator(
-        task_id='check_validation',
-        python_callable=branch_task,
+    data_validation = BranchPythonOperator(
+        task_id='data_validation',
+        python_callable=data_validation,
         provide_context=True
     )
 
@@ -237,36 +237,36 @@ with DAG('sync_products_with_facebook', default_args=default_args, schedule_inte
         python_callable=data_transformation,
         provide_context=True
     )
-    end_dag = DummyOperator(
-        task_id='end_dag'
+    validation_failed = DummyOperator(
+        task_id='validation_failed'
     )
 
-    send_to_facebook_task = PythonOperator(
+    send_to_facebook_catalog = PythonOperator(
         task_id='send_to_facebook_catalog',
         python_callable=send_to_facebook_catalog,
         provide_context=True,
         sla=timedelta(hours=1),
     )
 
-    check_batch_status_task = PythonOperator(
-        task_id='check_batch_status',
-        python_callable=check_batch_status,
+    checking_sent_data_handles = PythonOperator(
+        task_id='checking_sent_data_handles',
+        python_callable=checking_sent_data_handles,
         provide_context=True,
         sla=timedelta(hours=1),
     )
     
-    move_input_data = PythonOperator(
-        task_id='move_input_data',
-        python_callable=move_processed_files,
+    archive_input_data = PythonOperator(
+        task_id='archive_input_data',
+        python_callable=archive_input_data,
         provide_context=True,
     )
-    save_transformed_data_task = PythonOperator(
-        task_id='save_transformed_data_task',
-        python_callable=save_product_synced_products,
+    save_sent_data = PythonOperator(
+        task_id='save_sent_data',
+        python_callable=save_sent_data,
         provide_context=True,
     )
 
 
-    validate_datasets>>check_validation
-    check_validation>>data_transformation>>send_to_facebook_task >> check_batch_status_task>>move_input_data>>save_transformed_data_task
-    check_validation>>end_dag
+    data_checking>>data_validation
+    data_validation>>data_transformation>>send_to_facebook_catalog >> checking_sent_data_handles>>archive_input_data>>save_sent_data
+    data_validation>>validation_failed
