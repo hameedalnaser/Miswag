@@ -43,7 +43,7 @@
 ## Diagrams
 
 ### Infrastructure Diagram
-![Infrastructure Diagram](path/to/infrastructure_diagram.png)
+![Infrastructure Diagram](/docs/pics/data architecture.png)
 
 ### Data Flow Diagram
 ![Data Flow Diagram](path/to/data_flow_diagram.png)
