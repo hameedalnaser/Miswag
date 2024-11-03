@@ -26,7 +26,7 @@ default_args = {
     'start_date': days_ago(1),
     'email_on_failure': False,
     'email_on_retry': False,
-    'retries': 0,
+    'retries': 3,
     'retry_delay': timedelta(minutes=3),
 }
 
@@ -218,7 +218,7 @@ def save_sent_data(ti):
 
 
 
-with DAG('sync_products_with_facebook', default_args=default_args, schedule_interval='@hourly') as dag:
+with DAG('sync_products_with_facebook_catalog', default_args=default_args, schedule_interval='@hourly') as dag:
     
     
     data_checking = PythonOperator(
@@ -245,14 +245,14 @@ with DAG('sync_products_with_facebook', default_args=default_args, schedule_inte
         task_id='send_to_facebook_catalog',
         python_callable=send_to_facebook_catalog,
         provide_context=True,
-        sla=timedelta(hours=1),
+        # sla=timedelta(hours=1),
     )
 
     checking_sent_data_handles = PythonOperator(
         task_id='checking_sent_data_handles',
         python_callable=checking_sent_data_handles,
         provide_context=True,
-        sla=timedelta(hours=1),
+        # sla=timedelta(hours=1),
     )
     
     archive_input_data = PythonOperator(
